@@ -15,11 +15,11 @@ pi install git:github.com/liush2yuxjtu/pi-ghost-text-zh
 Config: `~/.pi/agent/prompt-suggestions-zh.json` (and project `.pi/prompt-suggestions-zh.json`).
 
 ```json
-{ "strategy": "session", "model": "auto", "reasoning": "off", "debug": false }
+{ "strategy": "cheap", "model": "openai-codex/gpt-6-luna", "reasoning": "off", "debug": false }
 ```
 
 - `strategy: "session"` — reuse session model + prompt cache (default).
-- `strategy: "cheap"` — separate small model. `model: "auto"` prefers mini/haiku/flash/nano/spark on the session provider first, then other providers (e.g. `cursor/*` when `CURSOR_API_KEY` is set). ChatGPT-backed Codex accounts often reject `gpt-*-mini` / spark; those are marked unusable for the process and skipped.
+- `strategy: "cheap"` — separate small model. `model: "auto"` prefers `gpt-6-luna` / `gpt-*luna` on openai-codex first (ChatGPT accounts reject `gpt-*-mini` / spark — those are never auto-picked on that provider), then haiku/flash/nano on other providers (e.g. `cursor/*` when `CURSOR_API_KEY` is set).
 - `reasoning: "off" | "minimal" | …` — prefer `"off"` for suggestion latency / demos.
 
 ## What this fork changes
@@ -30,14 +30,14 @@ Config: `~/.pi/agent/prompt-suggestions-zh.json` (and project `.pi/prompt-sugges
 - **Richer context** (cheap strategy): last assistant reply keeps up to `lastAssistantChars` (default 2000, head+tail), cwd + project name (dir + package.json name), and a one-line summary of the last `toolCalls` (default 8) tool calls.
 - **Model strategy** (`strategy`, `/suggest-strategy`):
   - `session` (default): same model as the session, same system prompt, same active tools, same message prefix and same `sessionId` (→ OpenAI `prompt_cache_key`) as the main loop, plus one extra `[SUGGESTION MODE …]` user turn with `toolChoice: "none"`. This mirrors Claude Code (forked query with `cacheSafeParams`) and Codex 0.158 (`tui.prompt_suggestions`, ephemeral thread fork on the parent model). If the last turn's uncached input exceeds `coldCacheTokens` (default 20000) it falls back to the cheap model.
-  - `cheap`: a separate small model (`model`: `auto` picks a mini/haiku/flash model, same provider as the session first; e.g. `openai-codex/gpt-5.4-mini`).
+  - `cheap`: a separate model (`model`: `auto` picks `gpt-6-luna` on openai-codex first; e.g. `openai-codex/gpt-6-luna`).
 - `reasoning` (default `minimal`) for suggestion requests.
 - Config files: `~/.pi/agent/prompt-suggestions-zh.json`, `.pi/prompt-suggestions-zh.json`; debug log `~/.pi/agent/prompt-suggestions-zh.log` (logs strategy, model, latency, input/cacheRead tokens).
 
 Example config:
 
 ```json
-{ "strategy": "session", "model": "openai-codex/gpt-5.4-mini", "reasoning": "minimal", "debug": true }
+{ "strategy": "cheap", "model": "openai-codex/gpt-6-luna", "reasoning": "off", "debug": true }
 ```
 
 Tests: `node --test test/*.test.ts`.
@@ -55,7 +55,7 @@ As you type (or after the agent finishes and the input is empty), a dimmed predi
 ## Requirements
 
 - **Interactive TUI mode.** Suggestions are an editor feature and only appear in the interactive terminal (`pi` with no mode flag). They do not run in `-p`/`--print`, `--mode json`, or `--mode rpc`.
-- **A model with a configured API key.** With the default `"model": "auto"`, the extension scans the available models for a fast/cheap one, in priority order: `haiku`, then `gpt-*mini`, then `flash`, then `nano`. If none match — or if an explicit `provider/model-id` isn't found — it falls back to the active session model. Set a specific model with `/suggest-model`.
+- **A model with a configured API key.** With the default `"model": "auto"`, the extension scans the available models for a fast/cheap one, in priority order: `gpt-6-luna` / `gpt-*luna`, then `haiku`, then `flash`, then `nano` (never `gpt-*-mini` / spark on openai-codex). If none match — or if an explicit `provider/model-id` isn't found — it falls back to the active session model. Set a specific model with `/suggest-model`.
 
 ## Install
 

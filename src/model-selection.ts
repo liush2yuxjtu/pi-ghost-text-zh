@@ -18,8 +18,20 @@ import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 export type Strategy = "session" | "cheap";
 
-/** Prefer a fast, cheap model for suggestions ("auto" cheap model). */
-export const MODEL_PREFERENCES = [/gpt-.*mini/i, /haiku/i, /flash/i, /nano/i, /spark/i];
+/**
+ * Prefer GPT-6 Luna (ChatGPT Codex–compatible) for suggestions ("auto" cheap model).
+ * Do not list gpt-*-mini / spark here: ChatGPT-backed openai-codex rejects them.
+ * haiku/flash/nano remain for non-Codex providers (e.g. Anthropic / Gemini / cursor).
+ */
+export const MODEL_PREFERENCES = [/gpt-6-luna/i, /gpt-.*luna/i, /haiku/i, /flash/i, /nano/i];
+
+/** Never auto-pick these on openai-codex (ChatGPT account rejects mini/spark). */
+export const CODEX_CHATGPT_DENY = [/gpt-.*mini/i, /spark/i];
+
+function isDeniedOnCodex(m: Pick<Model<any>, "provider" | "id">): boolean {
+	if (m.provider !== "openai-codex") return false;
+	return CODEX_CHATGPT_DENY.some((p) => p.test(m.id));
+}
 
 /** Pick the first pool model matching a preference pattern, else the fallback. */
 export function pickAutoModel(
@@ -27,10 +39,10 @@ export function pickAutoModel(
 	fallback: Model<any> | undefined,
 	exclude: ReadonlySet<string> = new Set(),
 ): Model<any> | undefined {
-	pool = pool.filter((m) => !exclude.has(modelKey(m)));
+	pool = pool.filter((m) => !exclude.has(modelKey(m)) && !isDeniedOnCodex(m));
 	// Prefer the same provider as the session model (same auth), then any other
 	// available provider that still has a cheap match (e.g. cursor/* when
-	// CURSOR_API_KEY is configured, or a local mini/haiku/flash provider).
+	// CURSOR_API_KEY is configured, or a local haiku/flash provider).
 	const sameProvider = fallback ? pool.filter((m) => m.provider === fallback.provider) : pool;
 	const otherProviders = fallback ? pool.filter((m) => m.provider !== fallback.provider) : [];
 	for (const candidates of [sameProvider, otherProviders]) {
@@ -54,7 +66,7 @@ export function modelKey(m: Pick<Model<any>, "provider" | "id">): string {
 
 /**
  * Models that failed for account/auth reasons this process (e.g. Codex with a
- * ChatGPT account rejects gpt-5.4-mini / gpt-5.3-codex-spark; cursor/* needs a
+ * ChatGPT account rejects gpt-*-mini / spark; cursor/* needs a
  * CURSOR_API_KEY). "auto" skips them and eventually falls back to the session model.
  */
 export const unusableModels = new Set<string>();

@@ -100,24 +100,29 @@ test("normalize strips CJK labels and quotes", () => {
 
 test("model strategy selection", () => {
 	const m = (provider: string, id: string) => ({ provider, id }) as any;
-	const session = m("openai-codex", "gpt-5.6-luna");
-	const pool = [m("cursor", "claude-haiku-4-5"), m("openai-codex", "gpt-5.6-luna"), m("openai-codex", "gpt-5.4-mini")];
-	assert.equal(pickAutoModel(pool, session)!.id, "gpt-5.4-mini", "same provider cheap model first");
+	const session = m("openai-codex", "gpt-6-luna");
+	const pool = [m("cursor", "claude-haiku-4-5"), m("openai-codex", "gpt-6-luna"), m("openai-codex", "gpt-5.4-mini"), m("openai-codex", "gpt-5.3-codex-spark")];
+	assert.equal(pickAutoModel(pool, session)!.id, "gpt-6-luna", "Codex path prefers luna, never mini/spark");
+	assert.ok(!["gpt-5.4-mini", "gpt-5.3-codex-spark"].includes(pickAutoModel(pool, session)!.id));
 	const ctx = { model: session, modelRegistry: { getAvailable: () => pool } } as any;
 	assert.deepEqual(resolveSuggestionModel(ctx, "session", "auto"), { model: session, strategy: "session" });
-	assert.equal(resolveSuggestionModel(ctx, "cheap", "auto")!.model.id, "gpt-5.4-mini");
+	assert.equal(resolveSuggestionModel(ctx, "cheap", "auto")!.model.id, "gpt-6-luna");
+	assert.equal(resolveSuggestionModel(ctx, "cheap", "openai-codex/gpt-6-luna")!.model.id, "gpt-6-luna");
 	assert.equal(resolveSuggestionModel(ctx, "cheap", "cursor/claude-haiku-4-5")!.model.id, "claude-haiku-4-5");
 });
 
 test("auto cheap model skips models unusable for this account", async () => {
 	const { pickAutoModel, isUnusableModelError } = await import("../src/model-selection.ts");
 	const m = (provider: string, id: string) => ({ provider, id }) as any;
-	const session = m("openai-codex", "gpt-5.6-luna");
+	const session = m("openai-codex", "gpt-6-luna");
+	// mini/spark are denied on openai-codex even before unusable set
 	const pool = [m("openai-codex", "gpt-5.4-mini"), m("openai-codex", "gpt-5.3-codex-spark"), session];
-	const bad = new Set(["openai-codex/gpt-5.4-mini"]);
-	assert.equal(pickAutoModel(pool, session, bad)!.id, "gpt-5.3-codex-spark");
-	bad.add("openai-codex/gpt-5.3-codex-spark");
-	assert.equal(pickAutoModel(pool, session, bad)!.id, "gpt-5.6-luna", "falls back to session model");
+	assert.equal(pickAutoModel(pool, session)!.id, "gpt-6-luna", "skips mini/spark on Codex");
+	const bad = new Set(["openai-codex/gpt-6-luna"]);
+	assert.equal(pickAutoModel(pool, session, bad)!.id, "gpt-6-luna", "fallback still session when only denied cheap ids remain");
+	// When luna is excluded and only mini/spark left, fall back to session (not mini)
+	const noLuna = [m("openai-codex", "gpt-5.4-mini"), m("openai-codex", "gpt-5.3-codex-spark")];
+	assert.equal(pickAutoModel(noLuna, session)!.id, "gpt-6-luna", "falls back to session model, not mini/spark");
 	assert.ok(isUnusableModelError("Codex error: The 'gpt-5.4-mini' model is not supported when using Codex with a ChatGPT account."));
 	assert.ok(isUnusableModelError("Cursor SDK runs require a Cursor SDK API key."));
 	assert.ok(!isUnusableModelError("request timed out"));
