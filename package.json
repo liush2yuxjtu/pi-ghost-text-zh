@@ -1,0 +1,51 @@
+{
+  "name": "pi-ghost-text-zh",
+  "version": "0.1.2-zh.1",
+  "description": "Fork of pi-ghost-text: language-matched next-prompt ghost suggestions (EN/ZH/JA/KO\u2026) with prompt-cache-friendly session strategy for the pi coding agent",
+  "license": "MIT",
+  "author": "Chris Vaughan (original); fork by ny ny",
+  "type": "module",
+  "engines": {
+    "node": ">=23.6"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "pi-extension",
+    "prompt-suggestions",
+    "prompt",
+    "suggestions",
+    "ghost-text",
+    "autocomplete"
+  ],
+  "files": [
+    "src"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "private": false,
+  "contributors": [
+    "Chris Vaughan (pi-ghost-text, https://github.com/jcv/pi-ghost-text)"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liush2yuxjtu/pi-ghost-text-zh.git"
+  },
+  "homepage": "https://github.com/liush2yuxjtu/pi-ghost-text-zh",
+  "bugs": {
+    "url": "https://github.com/liush2yuxjtu/pi-ghost-text-zh/issues"
+  }
+}
